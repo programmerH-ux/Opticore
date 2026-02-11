@@ -34,7 +34,7 @@ All Pro features
 Custom optimizers
 Dedicated support
 Custom licensing & SLA
-📩 Contact: optiengine@gmail.com
+📩 Contact: magnusoriginalsoftware@gmail.com
 
 # License Summary
 Free edition is licensed under Apache 2.0
