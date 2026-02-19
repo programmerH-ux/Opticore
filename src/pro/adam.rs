@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use crate::license::ensure_pro;
+use crate::license::ensure_pro()?;
 
 #[pyclass]
 pub struct Adam {

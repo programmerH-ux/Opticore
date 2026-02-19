@@ -4,6 +4,7 @@ use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use chrono::NaiveDate;
+use crate::license::ensure_pro()?;
 
 // License activation state
 static LICENSE_VALID: AtomicBool = AtomicBool::new(false);
