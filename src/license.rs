@@ -1,3 +1,5 @@
+use sha2::{Sha256, Digest};
+use sysinfo::{System, SystemExt};
 use pyo3::prelude::*;
 use ed25519_dalek::{Signature, VerifyingKey, Verifier};
 use base64::{engine::general_purpose, Engine as _};
@@ -16,6 +18,7 @@ struct LicensePayload {
     email: String,
     expiry: String,
     plan: String,
+    machine: String,
 }
 
 // Called internally by Pro features
@@ -54,14 +57,16 @@ pub fn activate_license_py(key: &str) -> PyResult<()> {
     let public_key = VerifyingKey::from_bytes(&PUBLIC_KEY_BYTES)
         .map_err(|_| pyo3::exceptions::PyPermissionError::new_err("Invalid public key"))?;
 
+    // Verify license signature
     public_key
         .verify(&payload_bytes, &signature)
         .map_err(|_| pyo3::exceptions::PyPermissionError::new_err("License verification failed"))?;
 
-    // Check expiry date
+    // Deserialize payload
     let payload: LicensePayload = serde_json::from_slice(&payload_bytes)
         .map_err(|_| pyo3::exceptions::PyPermissionError::new_err("Invalid payload"))?;
 
+    // Check expiry date
     let expiry_date = NaiveDate::parse_from_str(&payload.expiry, "%Y-%m-%d")
         .map_err(|_| pyo3::exceptions::PyPermissionError::new_err("Invalid expiry format"))?;
 
@@ -73,6 +78,20 @@ pub fn activate_license_py(key: &str) -> PyResult<()> {
         ));
     }
 
+    // ✅ MACHINE BINDING CHECK
+    let current_machine = machine_fingerprint();
+    if payload.machine != current_machine {
+        return Err(pyo3::exceptions::PyPermissionError::new_err(
+            "License is not valid for this machine",
+        ));
+    }
+
+    // License is valid
     LICENSE_VALID.store(true, Ordering::Relaxed);
     Ok(())
+}
+
+#[pyfunction(name = "machine_id")]
+pub fn machine_id_py() -> PyResult<String> {
+    Ok(machine_fingerprint())
 }
