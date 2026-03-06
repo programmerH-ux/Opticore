@@ -1,24 +1,43 @@
 use sha2::{Sha256, Digest};
-use sysinfo::{System, SystemExt};
+use sysinfo::System;
 use pyo3::prelude::*;
 use ed25519_dalek::{Signature, VerifyingKey, Verifier};
 use base64::{engine::general_purpose, Engine as _};
-use serde::{Deserialize};
+use serde::{Serialize, Deserialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use chrono::NaiveDate;
-use crate::license;
+
+fn machine_fingerprint() -> String {
+    use sha2::{Sha256, Digest};
+    use sysinfo::System;
+
+    let mut system = System::new_all();
+    system.refresh_all();
+
+    let cpu_brand = system.global_cpu_info().brand();
+    let total_memory = system.total_memory();
+    let os = System::name().unwrap_or_default();
+
+    let raw = format!("{}-{}-{}", cpu_brand, total_memory, os);
+
+    let mut hasher = Sha256::new();
+    hasher.update(raw.as_bytes());
+    let result = hasher.finalize();
+
+    hex::encode(result)
+}
 
 // License activation state
 static LICENSE_VALID: AtomicBool = AtomicBool::new(false);
 
-const PUBLIC_KEY_BYTES: [u8; 32] = [104, 255, 73, 240, 99, 190, 83, 244, 72, 127, 161, 180, 132, 103, 2, 181, 186, 124, 181, 13, 212, 142, 116, 155, 22, 212, 69, 66, 33, 179, 149, 153];
+const PUBLIC_KEY_BYTES: [u8; 32] = [222, 191, 117, 51, 124, 170, 60, 9, 49, 153, 86, 110, 23, 231, 97, 79, 47, 164, 30, 35, 162, 56, 53, 63, 82, 249, 213, 84, 165, 121, 247, 86];
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct LicensePayload {
     email: String,
-    expiry: String,
-    plan: String,
-    machine: String,
+    expiry: String,     // "YYYY-MM-DD" or "" for lifetime
+    plan: String,       // "monthly", "yearly", "lifetime"
+    machine: String,    // machine fingerprint
 }
 
 // Called internally by Pro features
